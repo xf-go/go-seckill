@@ -53,7 +53,6 @@ func InitConfig() (err error) {
 	}
 	logs.Debug("read config succ, redis addr:%v", redisAddr)
 	logs.Debug("read config succ, etcd addr:%v", etcdAddr)
-
 	secKillConf.RedisAddr.RedisAddr = redisAddr
 	secKillConf.EtcdConf.EtcdAddr = etcdAddr
 
@@ -99,7 +98,6 @@ func InitConfig() (err error) {
 		err = fmt.Errorf("init config failed, read log_path err: %v", err)
 		return
 	}
-
 	secKillConf.LogPath = logPath
 	secKillConf.LogLevel = logLevel
 
