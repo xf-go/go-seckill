@@ -35,7 +35,6 @@ func SetLogConfToEtcd() {
 		fmt.Println("connect failed, err: ", err)
 		return
 	}
-	fmt.Println("cli: ", cli)
 	defer cli.Close()
 
 	var secInfoConfArr []SecInfoConf
@@ -70,7 +69,7 @@ func SetLogConfToEtcd() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	_, err = cli.Put(ctx, EtcdKey, string(data))
-	defer cancel()
+	cancel()
 	if err != nil {
 		fmt.Println("put failed, err:", err)
 		return

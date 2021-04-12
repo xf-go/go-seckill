@@ -2,13 +2,17 @@ package setup
 
 import (
 	"fmt"
+	"strings"
+	"sync"
 
 	"github.com/beego/beego/v2/core/logs"
 	beego "github.com/beego/beego/v2/server/web"
 )
 
 var (
-	secKillConf = &SecKillConf{}
+	secKillConf = &SecKillConf{
+		SecProductInfoMap: make(map[int]*SecProductInfoConf, 1024),
+	}
 )
 
 type RedisConf struct {
@@ -19,19 +23,22 @@ type RedisConf struct {
 }
 
 type EtcdConf struct {
-	EtcdAddr   string
-	Timeout    int
-	EtcdSecKey string
+	EtcdAddr          string
+	Timeout           int
+	EtcdSecKeyPrefix  string
+	EtcdSecProductKey string
 }
 
 type SecKillConf struct {
-	RedisAddr RedisConf
-	EtcdConf  EtcdConf
-	LogPath   string
-	LogLevel  string
+	RedisAddr         RedisConf
+	EtcdConf          EtcdConf
+	LogPath           string
+	LogLevel          string
+	SecProductInfoMap map[int]*SecProductInfoConf
+	rwSecProductLock  sync.RWMutex
 }
 
-type SecInfiConf struct {
+type SecProductInfoConf struct {
 	ProductID int
 	StartTime int
 	EndTime   int
@@ -80,13 +87,22 @@ func InitConfig() (err error) {
 		err = fmt.Errorf("init config failed, read etcd_timeout err: %v", err)
 		return
 	}
-	etcdSecKey, err := beego.AppConfig.String("etcd_sec_key")
+	etcdSecKeyPrefix, err := beego.AppConfig.String("etcd_sec_key_prefix")
 	if err != nil {
-		err = fmt.Errorf("init config failed, read etcd_sec_key error:%v", err)
+		err = fmt.Errorf("init config failed, read etcd_sec_key_prefix error:%v", err)
 		return
 	}
-	secKillConf.EtcdConf.EtcdSecKey = etcdSecKey
+	etcdProductKey, err := beego.AppConfig.String("etcd_product_key")
+	if err != nil {
+		err = fmt.Errorf("init config failed, read etcd_product_key error:%v", err)
+		return
+	}
+	if !strings.HasSuffix(secKillConf.EtcdConf.EtcdSecKeyPrefix, "/") {
+		secKillConf.EtcdConf.EtcdSecKeyPrefix = secKillConf.EtcdConf.EtcdSecKeyPrefix + "/"
+	}
 	secKillConf.EtcdConf.Timeout = etcdTimeout
+	secKillConf.EtcdConf.EtcdSecKeyPrefix = etcdSecKeyPrefix
+	secKillConf.EtcdConf.EtcdSecProductKey = fmt.Sprintf("%s%s", etcdSecKeyPrefix, etcdProductKey)
 
 	logPath, err := beego.AppConfig.String("log_path")
 	if err != nil {

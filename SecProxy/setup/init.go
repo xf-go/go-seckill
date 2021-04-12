@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/beego/beego/v2/core/logs"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/gomodule/redigo/redis"
 
 	etcd "go.etcd.io/etcd/clientv3"
@@ -40,6 +41,8 @@ func InitSec() (err error) {
 		logs.Error("load sec conf failed, err: %v", err)
 		return
 	}
+
+	initSecProductWatcher()
 
 	logs.Info("init sec succ")
 	return
@@ -111,13 +114,77 @@ func initEtcd() (err error) {
 }
 
 func loadSecConf() (err error) {
-	key := fmt.Sprintf("%s/product", secKillConf.EtcdConf.EtcdSecKey)
-	resp, err := etcdClient.Get(context.Background(), key)
+	resp, err := etcdClient.Get(context.Background(), secKillConf.EtcdConf.EtcdSecProductKey)
 	if err != nil {
-		logs.Error("get [%s] from etcd failed, err: %v", key, err)
+		logs.Error("get [%s] from etcd failed, err: %v", secKillConf.EtcdConf.EtcdSecProductKey, err)
+		return
 	}
+
+	var secProductInfo []SecProductInfoConf
 	for k, v := range resp.Kvs {
 		logs.Debug("key[%v] value[%v]", k, v)
+		err = json.Unmarshal(v.Value, &secProductInfo)
+		if err != nil {
+			logs.Error("json.Unmarshal failed, err: %v", err)
+			return
+		}
+		logs.Debug("sec info conf is [%v]", secProductInfo)
 	}
+
+	updateSecProductInfo(secProductInfo)
 	return
+}
+
+func initSecProductWatcher() {
+	go watchSecProductKey(secKillConf.EtcdConf.EtcdSecProductKey)
+}
+
+func watchSecProductKey(key string) {
+	cli, err := etcd.New(etcd.Config{
+		Endpoints:   []string{"localhost:2379"},
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		logs.Error("connect etcd failed, err:%v", err)
+		return
+	}
+	logs.Debug("begin watch key:%s", key)
+	for {
+		ch := cli.Watch(context.Background(), key)
+		var secProductInfo []SecProductInfoConf
+		getConfSucc := true
+
+		for v := range ch {
+			for _, event := range v.Events {
+				if event.Type == mvccpb.DELETE {
+					logs.Warn("key[%s] 's config deleted", key)
+					continue
+				}
+
+				if event.Type == mvccpb.PUT && string(event.Kv.Key) == key {
+					err = json.Unmarshal(event.Kv.Value, &secProductInfo)
+					if err != nil {
+						logs.Error("key [%s], json.Unmarshal failed, err:%v", err)
+						getConfSucc = false
+						continue
+					}
+				}
+				logs.Debug("get config from etcd,%s,$q : %q\n", event.Type, event.Kv.Key, event.Kv.Value)
+			}
+			if getConfSucc {
+				logs.Debug("get config from etcd succ, %v", secProductInfo)
+				updateSecProductInfo(secProductInfo)
+			}
+		}
+	}
+}
+
+func updateSecProductInfo(secProductInfo []SecProductInfoConf) {
+	var tmp map[int]*SecProductInfoConf = make(map[int]*SecProductInfoConf, 1024)
+	for _, v := range secProductInfo {
+		tmp[v.ProductID] = &v
+	}
+	secKillConf.rwSecProductLock.Lock()
+	secKillConf.SecProductInfoMap = tmp
+	secKillConf.rwSecProductLock.Unlock()
 }
