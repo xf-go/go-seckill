@@ -1,51 +1,19 @@
 package setup
 
 import (
+	"SecProxy/service"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/beego/beego/v2/core/logs"
 	beego "github.com/beego/beego/v2/server/web"
 )
 
 var (
-	secKillConf = &SecKillConf{
-		SecProductInfoMap: make(map[int]*SecProductInfoConf, 1024),
+	secKillConf = &service.SecKillConf{
+		SecProductInfoMap: make(map[int]*service.SecProductInfoConf, 1024),
 	}
 )
-
-type RedisConf struct {
-	RedisAddr        string
-	RedisMaxIdle     int
-	RedisMaxActive   int
-	RedisIdleTimeout int
-}
-
-type EtcdConf struct {
-	EtcdAddr          string
-	Timeout           int
-	EtcdSecKeyPrefix  string
-	EtcdSecProductKey string
-}
-
-type SecKillConf struct {
-	RedisAddr         RedisConf
-	EtcdConf          EtcdConf
-	LogPath           string
-	LogLevel          string
-	SecProductInfoMap map[int]*SecProductInfoConf
-	rwSecProductLock  sync.RWMutex
-}
-
-type SecProductInfoConf struct {
-	ProductID int
-	StartTime int
-	EndTime   int
-	Status    int
-	Total     int
-	Left      int
-}
 
 func InitConfig() (err error) {
 	redisAddr, err := beego.AppConfig.String("redis_addr")

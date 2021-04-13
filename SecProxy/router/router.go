@@ -1,12 +1,12 @@
 package router
 
 import (
-	"SecProxy/controller"
+	"SecProxy/controllers"
 
-	"github.com/beego/beego/v2/server/web"
+	beego "github.com/beego/beego/v2/server/web"
 )
 
 func init() {
-	web.Router("/seckill", &controller.SkillController{}, "*:SecKill")
-	web.Router("/secinfo", &controller.SkillController{}, "*:SecInfo")
+	beego.Router("/seckill", &controllers.KillController{}, "*:SecKill")
+	beego.Router("/secinfo", &controllers.KillController{}, "*:SecInfo")
 }

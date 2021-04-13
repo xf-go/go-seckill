@@ -23,10 +23,10 @@ type SecInfoConf struct {
 }
 
 func main() {
-	SetLogConfToEtcd()
+	setSecInfoConfToEtcd()
 }
 
-func SetLogConfToEtcd() {
+func setSecInfoConfToEtcd() {
 	cli, err := etcd.New(etcd.Config{
 		Endpoints:   []string{"localhost:2379"},
 		DialTimeout: 5 * time.Second,

@@ -1,13 +1,13 @@
 package setup
 
 import (
+	"SecProxy/service"
 	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/beego/beego/v2/core/logs"
-	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/gomodule/redigo/redis"
 
 	etcd "go.etcd.io/etcd/clientv3"
@@ -22,6 +22,7 @@ func InitSec() (err error) {
 	err = initLogger()
 	if err != nil {
 		logs.Error("init logger failed, err: %v", err)
+		return
 	}
 
 	// err = initRedis()
@@ -42,6 +43,7 @@ func InitSec() (err error) {
 		return
 	}
 
+	service.InitService(secKillConf)
 	initSecProductWatcher()
 
 	logs.Info("init sec succ")
@@ -120,7 +122,7 @@ func loadSecConf() (err error) {
 		return
 	}
 
-	var secProductInfo []SecProductInfoConf
+	var secProductInfo []service.SecProductInfoConf
 	for k, v := range resp.Kvs {
 		logs.Debug("key[%v] value[%v]", k, v)
 		err = json.Unmarshal(v.Value, &secProductInfo)
@@ -151,25 +153,25 @@ func watchSecProductKey(key string) {
 	logs.Debug("begin watch key:%s", key)
 	for {
 		ch := cli.Watch(context.Background(), key)
-		var secProductInfo []SecProductInfoConf
+		var secProductInfo []service.SecProductInfoConf
 		getConfSucc := true
 
 		for v := range ch {
-			for _, event := range v.Events {
-				if event.Type == mvccpb.DELETE {
+			for _, ev := range v.Events {
+				if ev.Type == etcd.EventTypeDelete {
 					logs.Warn("key[%s] 's config deleted", key)
 					continue
 				}
 
-				if event.Type == mvccpb.PUT && string(event.Kv.Key) == key {
-					err = json.Unmarshal(event.Kv.Value, &secProductInfo)
+				if ev.Type == etcd.EventTypePut && string(ev.Kv.Key) == key {
+					err = json.Unmarshal(ev.Kv.Value, &secProductInfo)
 					if err != nil {
 						logs.Error("key [%s], json.Unmarshal failed, err:%v", err)
 						getConfSucc = false
 						continue
 					}
 				}
-				logs.Debug("get config from etcd,%s,$q : %q\n", event.Type, event.Kv.Key, event.Kv.Value)
+				logs.Debug("get config from etcd,%s,$q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
 			}
 			if getConfSucc {
 				logs.Debug("get config from etcd succ, %v", secProductInfo)
@@ -179,12 +181,13 @@ func watchSecProductKey(key string) {
 	}
 }
 
-func updateSecProductInfo(secProductInfo []SecProductInfoConf) {
-	var tmp map[int]*SecProductInfoConf = make(map[int]*SecProductInfoConf, 1024)
+func updateSecProductInfo(secProductInfo []service.SecProductInfoConf) {
+	fmt.Println("secProductInfo: ", secProductInfo)
+	var tmp map[int]*service.SecProductInfoConf = make(map[int]*service.SecProductInfoConf, 1024)
 	for _, v := range secProductInfo {
 		tmp[v.ProductID] = &v
 	}
-	secKillConf.rwSecProductLock.Lock()
+	secKillConf.RWSecProductLock.Lock()
 	secKillConf.SecProductInfoMap = tmp
-	secKillConf.rwSecProductLock.Unlock()
+	secKillConf.RWSecProductLock.Unlock()
 }

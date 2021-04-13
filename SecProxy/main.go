@@ -18,6 +18,6 @@ func main() {
 		panic(err)
 	}
 
-	beego.SetStaticPath("/down", "download1")
+	// beego.SetStaticPath("/down", "download1")
 	beego.Run()
 }
