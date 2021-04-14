@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "SecProxy/router"
+	_ "SecProxy/routers"
 	"SecProxy/setup"
 
 	beego "github.com/beego/beego/v2/server/web"

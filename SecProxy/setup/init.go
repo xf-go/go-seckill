@@ -83,11 +83,11 @@ func convertLogLevel(level string) int {
 
 func initRedis() (err error) {
 	redisPool = &redis.Pool{
-		MaxIdle:     secKillConf.RedisAddr.RedisMaxIdle,
-		MaxActive:   secKillConf.RedisAddr.RedisMaxActive,
-		IdleTimeout: time.Duration(secKillConf.RedisAddr.RedisIdleTimeout) * time.Second,
+		MaxIdle:     secKillConf.RedisBlackAddr.RedisMaxIdle,
+		MaxActive:   secKillConf.RedisBlackAddr.RedisMaxActive,
+		IdleTimeout: time.Duration(secKillConf.RedisBlackAddr.RedisIdleTimeout) * time.Second,
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", secKillConf.RedisAddr.RedisAddr)
+			return redis.Dial("tcp", secKillConf.RedisBlackAddr.RedisAddr)
 		},
 	}
 	conn := redisPool.Get()
@@ -182,10 +182,10 @@ func watchSecProductKey(key string) {
 }
 
 func updateSecProductInfo(secProductInfo []service.SecProductInfoConf) {
-	fmt.Println("secProductInfo: ", secProductInfo)
 	var tmp map[int]*service.SecProductInfoConf = make(map[int]*service.SecProductInfoConf, 1024)
 	for _, v := range secProductInfo {
-		tmp[v.ProductID] = &v
+		productInfo := v
+		tmp[v.ProductId] = &productInfo
 	}
 	secKillConf.RWSecProductLock.Lock()
 	secKillConf.SecProductInfoMap = tmp

@@ -28,7 +28,7 @@ func main() {
 
 func setSecInfoConfToEtcd() {
 	cli, err := etcd.New(etcd.Config{
-		Endpoints:   []string{"localhost:2379"},
+		Endpoints:   []string{"127.0.0.1:2379"},
 		DialTimeout: 5 * time.Second,
 	})
 	if err != nil {
