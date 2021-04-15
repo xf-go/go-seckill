@@ -3,87 +3,14 @@ package service
 import (
 	"crypto/md5"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/beego/beego/v2/core/logs"
-	"github.com/gomodule/redigo/redis"
 )
-
-var (
-	secKillConf *SecKillConf
-)
-
-func InitService(conf *SecKillConf) {
-	secKillConf = conf
-
-	loadBlackList()
-	logs.Debug("init service succ, config:%v", conf)
-}
-
-func loadBlackList() (err error) {
-	err = initBlackRedis()
-	if err != nil {
-		logs.Error("init black redis failed, err:%v", err)
-		return
-	}
-
-	conn := secKillConf.BlackRedisPool.Get()
-	defer conn.Close()
-
-	reply, err := conn.Do("hgetall", "idblacklist")
-	idlist, err := redis.Strings(reply, err)
-	if err != nil {
-		logs.Warn("hget all failed,err:%v", err)
-		return
-	}
-
-	for _, v := range idlist {
-		id, err := strconv.Atoi(v)
-		if err != nil {
-			logs.Warn("invalid user id [%v]", id)
-			continue
-		}
-		secKillConf.IdBlackList[id] = true
-	}
-
-	reply, err = conn.Do("hgetall", "ipblacklist")
-	iplist, err := redis.Strings(reply, err)
-	if err != nil {
-		logs.Warn("hget all failed,err:%v", err)
-		return
-	}
-
-	for _, v := range iplist {
-		secKillConf.IpBlackList[v] = true
-	}
-	return
-}
-
-func initBlackRedis() (err error) {
-	secKillConf.BlackRedisPool = &redis.Pool{
-		MaxIdle:     secKillConf.RedisBlackAddr.RedisMaxIdle,
-		MaxActive:   secKillConf.RedisBlackAddr.RedisMaxActive,
-		IdleTimeout: time.Duration(secKillConf.RedisBlackAddr.RedisIdleTimeout) * time.Second,
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", secKillConf.RedisBlackAddr.RedisAddr)
-		},
-	}
-	conn := secKillConf.BlackRedisPool.Get()
-	defer conn.Close()
-
-	_, err = conn.Do("ping")
-	if err != nil {
-		logs.Error("ping redis failed, err: %v", err)
-		return
-	}
-
-	return
-}
 
 func SecKill(req *SecRequest) (data map[string]interface{}, code int, err error) {
-	secKillConf.RWSecProductLock.RLock()
-	defer secKillConf.RWSecProductLock.RUnlock()
+	secKillServer.RWSecProductLock.RLock()
+	defer secKillServer.RWSecProductLock.RUnlock()
 
 	err = userCheck(req)
 	if err != nil {
@@ -98,12 +25,25 @@ func SecKill(req *SecRequest) (data map[string]interface{}, code int, err error)
 		logs.Warn("userId[%d] invalid, check failed, req[%v]", req.UserId, req)
 		return
 	}
+
+	data, code, err = SecInfoById(req.ProductId)
+	if err != nil {
+		logs.Warn("userId[%d] SecInfoById failed, req[%v]", req.UserId, req)
+		return
+	}
+	if code != 0 {
+		logs.Warn("userId[%d] SecInfoById failed, code[%d] req[%v]", req.UserId, code, req)
+		return
+	}
+
+	secKillServer.SecReqChan <- req
+
 	return
 }
 
 func userCheck(req *SecRequest) (err error) {
 	found := false
-	for _, referer := range secKillConf.RefererWhiteList {
+	for _, referer := range secKillServer.RefererWhiteList {
 		if referer == req.ClientReferer {
 			found = true
 			break
@@ -114,7 +54,7 @@ func userCheck(req *SecRequest) (err error) {
 		logs.Warn("user[%d] is rejected by referer, req[%v]", req.UserId, req)
 		return
 	}
-	authData := fmt.Sprintf("%d:%s", req.UserId, secKillConf.CookieSecretKey)
+	authData := fmt.Sprintf("%d:%s", req.UserId, secKillServer.CookieSecretKey)
 	authSign := fmt.Sprintf("%x", md5.Sum([]byte(authData)))
 	if authSign != req.UserAuthSign {
 		err = fmt.Errorf("invalid user cookie auth")
@@ -124,10 +64,10 @@ func userCheck(req *SecRequest) (err error) {
 }
 
 func SecInfoList() (data []map[string]interface{}, code int, err error) {
-	secKillConf.RWSecProductLock.RLock()
-	defer secKillConf.RWSecProductLock.RUnlock()
+	secKillServer.RWSecProductLock.RLock()
+	defer secKillServer.RWSecProductLock.RUnlock()
 
-	for _, v := range secKillConf.SecProductInfoMap {
+	for _, v := range secKillServer.SecProductInfoMap {
 		item, _, err := SecInfoById(v.ProductId)
 		if err != nil {
 			logs.Error("get product_id[%d] failed, err:%v", v.ProductId, err)
@@ -139,8 +79,8 @@ func SecInfoList() (data []map[string]interface{}, code int, err error) {
 }
 
 func SecInfo(productId int) (data []map[string]interface{}, code int, err error) {
-	secKillConf.RWSecProductLock.RLock()
-	defer secKillConf.RWSecProductLock.RUnlock()
+	secKillServer.RWSecProductLock.RLock()
+	defer secKillServer.RWSecProductLock.RUnlock()
 
 	item, code, err := SecInfoById(productId)
 	if err != nil {
@@ -152,10 +92,10 @@ func SecInfo(productId int) (data []map[string]interface{}, code int, err error)
 }
 
 func SecInfoById(productId int) (data map[string]interface{}, code int, err error) {
-	secKillConf.RWSecProductLock.RLock()
-	defer secKillConf.RWSecProductLock.RUnlock()
+	secKillServer.RWSecProductLock.RLock()
+	defer secKillServer.RWSecProductLock.RUnlock()
 
-	v, ok := secKillConf.SecProductInfoMap[productId]
+	v, ok := secKillServer.SecProductInfoMap[productId]
 	if !ok {
 		code = ErrNotFoundProductId
 		err = fmt.Errorf("not found product_id:%d", productId)
@@ -163,18 +103,30 @@ func SecInfoById(productId int) (data map[string]interface{}, code int, err erro
 	}
 
 	start, end := false, false
+	status := "success"
+
 	now := time.Now().Unix()
+	if now < v.StartTime {
+		status = "sec kill is not start"
+		code = ErrActivityNotStart
+	}
 	if now > v.StartTime {
 		start = true
 	}
 	if now > v.EndTime {
 		end = true
+		status = "sec kill is alredy end"
+		code = ErrActivityAlreadyEnd
+	}
+	if v.Status == ProductStatusForceSaleOut || v.Status == ProductStatusSaleOut {
+		status = "product is sale out"
+		code = ErrActivitySaleOut
 	}
 	data = make(map[string]interface{})
 	data["product_id"] = productId
 	data["start"] = start
 	data["end"] = end
-	data["status"] = v.Status
+	data["status"] = status
 
 	return
 }

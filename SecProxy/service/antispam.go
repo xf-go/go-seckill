@@ -26,7 +26,7 @@ func antiSpam(req *SecRequest) (err error) {
 		secLimitMgr.UserLimitMap[req.UserId] = userLimit
 	}
 	count := userLimit.Count(req.AccessTime.Unix())
-	if count > secKillConf.UserSecAccessLimit {
+	if count > secKillServer.AccessLimitConf.UserSecAccessLimit {
 		err = fmt.Errorf("invalid request")
 		return
 	}
@@ -37,7 +37,7 @@ func antiSpam(req *SecRequest) (err error) {
 		secLimitMgr.IpLimitMap[req.ClientAddr] = ipLimit
 	}
 	count = ipLimit.Count(req.AccessTime.Unix())
-	if count > secKillConf.IPSecAccessLimit {
+	if count > secKillServer.AccessLimitConf.IPSecAccessLimit {
 		err = fmt.Errorf("invalid request")
 		return
 	}

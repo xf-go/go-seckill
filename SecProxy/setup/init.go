@@ -43,7 +43,7 @@ func InitSec() (err error) {
 		return
 	}
 
-	service.InitService(secKillConf)
+	service.InitService(secKillServer)
 	initSecProductWatcher()
 
 	logs.Info("init sec succ")
@@ -52,8 +52,8 @@ func InitSec() (err error) {
 
 func initLogger() (err error) {
 	config := make(map[string]interface{})
-	config["filename"] = secKillConf.LogPath
-	config["level"] = convertLogLevel(secKillConf.LogLevel)
+	config["filename"] = secKillServer.LogPath
+	config["level"] = convertLogLevel(secKillServer.LogLevel)
 
 	configStr, err := json.Marshal(config)
 	if err != nil {
@@ -83,11 +83,11 @@ func convertLogLevel(level string) int {
 
 func initRedis() (err error) {
 	redisPool = &redis.Pool{
-		MaxIdle:     secKillConf.RedisBlackAddr.RedisMaxIdle,
-		MaxActive:   secKillConf.RedisBlackAddr.RedisMaxActive,
-		IdleTimeout: time.Duration(secKillConf.RedisBlackAddr.RedisIdleTimeout) * time.Second,
+		MaxIdle:     secKillServer.RedisBlackConf.RedisMaxIdle,
+		MaxActive:   secKillServer.RedisBlackConf.RedisMaxActive,
+		IdleTimeout: time.Duration(secKillServer.RedisBlackConf.RedisIdleTimeout) * time.Second,
 		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", secKillConf.RedisBlackAddr.RedisAddr)
+			return redis.Dial("tcp", secKillServer.RedisBlackConf.RedisAddr)
 		},
 	}
 	conn := redisPool.Get()
@@ -104,8 +104,8 @@ func initRedis() (err error) {
 
 func initEtcd() (err error) {
 	cli, err := etcd.New(etcd.Config{
-		Endpoints:   []string{secKillConf.EtcdConf.EtcdAddr},
-		DialTimeout: time.Duration(secKillConf.EtcdConf.Timeout) * time.Second,
+		Endpoints:   []string{secKillServer.EtcdConf.EtcdAddr},
+		DialTimeout: time.Duration(secKillServer.EtcdConf.Timeout) * time.Second,
 	})
 	if err != nil {
 		logs.Error("connect etcd failed, err: %v", err)
@@ -116,9 +116,9 @@ func initEtcd() (err error) {
 }
 
 func loadSecConf() (err error) {
-	resp, err := etcdClient.Get(context.Background(), secKillConf.EtcdConf.EtcdSecProductKey)
+	resp, err := etcdClient.Get(context.Background(), secKillServer.EtcdConf.EtcdSecProductKey)
 	if err != nil {
-		logs.Error("get [%s] from etcd failed, err: %v", secKillConf.EtcdConf.EtcdSecProductKey, err)
+		logs.Error("get [%s] from etcd failed, err: %v", secKillServer.EtcdConf.EtcdSecProductKey, err)
 		return
 	}
 
@@ -138,7 +138,7 @@ func loadSecConf() (err error) {
 }
 
 func initSecProductWatcher() {
-	go watchSecProductKey(secKillConf.EtcdConf.EtcdSecProductKey)
+	go watchSecProductKey(secKillServer.EtcdConf.EtcdSecProductKey)
 }
 
 func watchSecProductKey(key string) {
@@ -187,7 +187,7 @@ func updateSecProductInfo(secProductInfo []service.SecProductInfoConf) {
 		productInfo := v
 		tmp[v.ProductId] = &productInfo
 	}
-	secKillConf.RWSecProductLock.Lock()
-	secKillConf.SecProductInfoMap = tmp
-	secKillConf.RWSecProductLock.Unlock()
+	secKillServer.RWSecProductLock.Lock()
+	secKillServer.SecProductInfoMap = tmp
+	secKillServer.RWSecProductLock.Unlock()
 }

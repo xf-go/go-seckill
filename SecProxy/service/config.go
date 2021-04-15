@@ -27,21 +27,40 @@ type EtcdConf struct {
 	EtcdSecProductKey string
 }
 
-type SecKillConf struct {
-	RedisBlackAddr     RedisConf
-	EtcdConf           EtcdConf
-	LogPath            string
-	LogLevel           string
-	SecProductInfoMap  map[int]*SecProductInfoConf
-	RWSecProductLock   sync.RWMutex
-	CookieSecretKey    string
-	UserSecAccessLimit int
-	RefererWhiteList   []string
+type AccessLimitConf struct {
 	IPSecAccessLimit   int
-	IpBlackList        map[string]bool
-	IdBlackList        map[int]bool
+	UserSecAccessLimit int
+	IPMinAccessLimit   int
+	UserMinAccessLimit int
+}
 
-	BlackRedisPool *redis.Pool
+type SecKillServer struct {
+	RedisBlackConf       RedisConf
+	RedisProxy2LayerConf RedisConf
+
+	EtcdConf          EtcdConf
+	LogPath           string
+	LogLevel          string
+	SecProductInfoMap map[int]*SecProductInfoConf
+	RWSecProductLock  sync.RWMutex
+	CookieSecretKey   string
+
+	RefererWhiteList []string
+
+	IpBlackMap map[string]bool
+	IdBlackMap map[int]bool
+
+	AccessLimitConf      AccessLimitConf
+	blackRedisPool       *redis.Pool
+	proxy2LayerRedisPool *redis.Pool
+	secLimitMgr          *SecLimitMgr
+
+	RWBlackLock                  sync.RWMutex
+	WriteProxy2LayerGoroutineNum int
+	ReadLayer2ProxyGoroutineNum  int
+
+	SecReqChan     chan *SecRequest
+	SecReqChanSize int
 }
 
 type SecProductInfoConf struct {
