@@ -83,4 +83,5 @@ type SecRequest struct {
 	AccessTime    time.Time
 	ClientAddr    string
 	ClientReferer string
+	CloseNotify   <-chan bool
 }
