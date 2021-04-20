@@ -13,7 +13,7 @@ func main() {
 	// 加载配置文件
 	err := setup.InitConfig("ini", "./conf/secLayer.conf")
 	if err != nil {
-		logs.Error("init config failed. err:%v", err)
+		logs.Error("init config failed. err: %v", err)
 		panic(err)
 	}
 

@@ -3,17 +3,22 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/beego/beego/v2/core/logs"
 	etcd "go.etcd.io/etcd/clientv3"
 )
 
 func loadProductFromEtcd(conf *SecLayerConf) (err error) {
-	resp, err := secLayerContext.etcdClient.Get(context.Background(), conf.EtcdConfig.EtcdSecProductKey)
+	logs.Debug("start load product from etcd.")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	resp, err := secLayerContext.etcdClient.Get(ctx, conf.EtcdConfig.EtcdSecProductKey)
 	if err != nil {
 		logs.Error("get [%s] from etcd failed, err: %v", conf.EtcdConfig.EtcdSecProductKey, err)
 		return
 	}
+	logs.Debug("load product from etcd srcc. resp: %v", resp)
 
 	var secProductInfo []SecProductInfoConf
 	for k, v := range resp.Kvs {

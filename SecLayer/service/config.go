@@ -15,6 +15,7 @@ type RedisConf struct {
 	RedisMaxIdle     int
 	RedisMaxActive   int
 	RedisIdleTimeout int
+	RedisQueueName   string
 }
 
 type EtcdConf struct {
@@ -41,6 +42,7 @@ type SecLayerConf struct {
 	SendToHandleChanTimeout int64
 
 	SecProductInfoMap map[int]*SecProductInfoConf
+	TokenPasswd       string
 }
 
 type SecLayerContext struct {
@@ -53,15 +55,23 @@ type SecLayerContext struct {
 	waitGroup        sync.WaitGroup
 	Read2HandleChan  chan *SecRequest
 	Handle2WriteChan chan *SecResponse
+
+	HistoryMap     map[int]*UserBuyHistory
+	HistoryMapLock sync.Mutex
+
+	// 商品的计数
+	productCountMgr *ProductCountMgr
 }
 
 type SecProductInfoConf struct {
-	ProductId int
-	StartTime int64
-	EndTime   int64
-	Status    int
-	Total     int
-	Left      int
+	ProductId         int
+	StartTime         int64
+	EndTime           int64
+	Status            int
+	Total             int
+	Left              int
+	OnePersonBuyLimit int
+	BuyRate           float64
 	// 每秒最多能卖多少个
 	soldMaxLimit int
 	// 限速控制
@@ -86,5 +96,6 @@ type SecResponse struct {
 	ProductId int
 	UserId    int
 	Token     string
+	TokenTime int64
 	Code      int
 }

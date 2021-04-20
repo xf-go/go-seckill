@@ -1,7 +1,10 @@
 package service
 
 import (
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/beego/beego/v2/core/logs"
@@ -71,7 +74,7 @@ func handleRead() {
 	for {
 		conn := secLayerContext.layer2ProxyRedisPool.Get()
 		for {
-			data, err := redis.Bytes(conn.Do("BLPOP", "queuelist", 0))
+			data, err := redis.Bytes(conn.Do("BLPOP", secLayerContext.secLayerConf.Proxy2LayerRedis.RedisQueueName, 0))
 			if err != nil {
 				logs.Error("pop from redis failed. err: %v", err)
 				break
@@ -122,7 +125,7 @@ func sendToRedis(res *SecResponse) (err error) {
 	}
 
 	conn := secLayerContext.layer2ProxyRedisPool.Get()
-	_, err = conn.Do("RPUSH", "layer2proxy_queue", string(data))
+	_, err = conn.Do("RPUSH", secLayerContext.secLayerConf.Layer2ProxyRedis.RedisQueueName, string(data))
 	if err != nil {
 		logs.Error("rpush to redis failed. err: %v", err)
 		return
@@ -175,6 +178,51 @@ func handleSecKill(req *SecRequest) (res *SecResponse, err error) {
 		res.Code = ErrRetry
 		return
 	}
+
+	// 限制每人购买数量
+	secLayerContext.HistoryMapLock.Lock()
+	userHistory, ok := secLayerContext.HistoryMap[req.UserId]
+	if !ok {
+		userHistory = &UserBuyHistory{
+			history: make(map[int]int, 16),
+		}
+
+		secLayerContext.HistoryMap[req.UserId] = userHistory
+	}
+
+	historyCount := userHistory.GetProductBuyCount(req.ProductId)
+	secLayerContext.HistoryMapLock.Unlock()
+
+	if historyCount >= product.OnePersonBuyLimit {
+		res.Code = ErrAlreadyBuy
+		return
+	}
+
+	// 限制商品总数
+	curSoldCount := secLayerContext.productCountMgr.Count(req.ProductId)
+	if curSoldCount >= product.Total {
+		res.Code = ErrSoldout
+		product.Status = ProductStatusSoldout
+		return
+	}
+
+	// 概率抽奖
+	curRate := rand.Float64()
+	if curRate > product.BuyRate {
+		res.Code = ErrRetry
+		return
+	}
+
+	// 更新总数
+	userHistory.Add(req.ProductId, 1)
+	secLayerContext.productCountMgr.Add(req.ProductId, 1)
+
+	res.Code = ErrSecKillSucc
+	tokenData := fmt.Sprintf("userId=%d&productId=%d&timestamp=%d&security=%s",
+		req.UserId, req.ProductId, now, secLayerContext.secLayerConf.TokenPasswd)
+
+	res.Token = fmt.Sprintf("%x", md5.Sum([]byte(tokenData)))
+	res.TokenTime = now
 
 	return
 }

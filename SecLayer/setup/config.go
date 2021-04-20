@@ -2,6 +2,8 @@ package setup
 
 import (
 	"SecLayer/service"
+	"fmt"
+	"strings"
 
 	"github.com/beego/beego/v2/adapter/config"
 	"github.com/beego/beego/v2/core/logs"
@@ -53,10 +55,17 @@ func InitConfig(adapterName, filename string) (err error) {
 		return
 	}
 
+	redisQueueName := conf.String("redis::redis_proxy2layer_queue_name")
+	if len(redisQueueName) == 0 {
+		logs.Error("read redis::redis_proxy2layer_queue_name failed. err:%v", err)
+		return
+	}
+
 	AppConfig.Proxy2LayerRedis.RedisAddr = redisAddr
 	AppConfig.Proxy2LayerRedis.RedisMaxActive = redisMaxActive
 	AppConfig.Proxy2LayerRedis.RedisMaxIdle = redisMaxIdle
 	AppConfig.Proxy2LayerRedis.RedisIdleTimeout = redisIdleTimeout
+	AppConfig.Proxy2LayerRedis.RedisQueueName = redisQueueName
 
 	// 读取redis相关配置
 	redisAddr = conf.String("redis::redis_proxy2layer_addr")
@@ -83,10 +92,46 @@ func InitConfig(adapterName, filename string) (err error) {
 		return
 	}
 
+	redisQueueName = conf.String("redis::redis_layer2proxy_queue_name")
+	if len(redisQueueName) == 0 {
+		logs.Error("read redis::redis_layer2proxy_queue_name failed. err:%v", err)
+		return
+	}
+
 	AppConfig.Layer2ProxyRedis.RedisAddr = redisAddr
 	AppConfig.Layer2ProxyRedis.RedisMaxActive = redisMaxActive
 	AppConfig.Layer2ProxyRedis.RedisMaxIdle = redisMaxIdle
 	AppConfig.Layer2ProxyRedis.RedisIdleTimeout = redisIdleTimeout
+	AppConfig.Layer2ProxyRedis.RedisQueueName = redisQueueName
+
+	// etcd
+	etcdAddr := conf.String("etcd::etcd_addr")
+	if len(etcdAddr) == 0 {
+		err = fmt.Errorf("init config failed, read etcd_addr error")
+		return
+	}
+	etcdTimeout, err := conf.Int("etcd::etcd_timeout")
+	if err != nil {
+		err = fmt.Errorf("init config failed, read etcd_timeout err: %v", err)
+		return
+	}
+	etcdSecKeyPrefix := conf.String("etcd::etcd_sec_key_prefix")
+	if len(etcdSecKeyPrefix) == 0 {
+		err = fmt.Errorf("init config failed, read etcd_sec_key_prefix error: %v", err)
+		return
+	}
+	etcdSecProductKey := conf.String("etcd::etcd_sec_product_key")
+	if len(etcdSecKeyPrefix) == 0 {
+		err = fmt.Errorf("init config failed, read etcd_sec_product_key error: %v", err)
+		return
+	}
+	AppConfig.EtcdConfig.EtcdAddr = etcdAddr
+	AppConfig.EtcdConfig.Timeout = etcdTimeout
+	AppConfig.EtcdConfig.EtcdSecKeyPrefix = etcdSecKeyPrefix
+	if !strings.HasSuffix(AppConfig.EtcdConfig.EtcdSecKeyPrefix, "/") {
+		AppConfig.EtcdConfig.EtcdSecKeyPrefix = AppConfig.EtcdConfig.EtcdSecKeyPrefix + "/"
+	}
+	AppConfig.EtcdConfig.EtcdSecProductKey = fmt.Sprintf("%s%s", AppConfig.EtcdConfig.EtcdSecKeyPrefix, etcdSecProductKey)
 
 	writeGoroutineNum, err := conf.Int("service::write_proxy2layer_goroutine_num")
 	if err != nil {
@@ -144,6 +189,13 @@ func InitConfig(adapterName, filename string) (err error) {
 	AppConfig.MaxRequestWaitTimeout = maxRequestWaitTimeout
 	AppConfig.SendToWriteChanTimeout = sendToWriteChanTimeout
 	AppConfig.SendToHandleChanTimeout = sendToHandleChanTimeout
+
+	tokenPasswd := conf.String("service::seckill_token_passwd")
+	if len(tokenPasswd) == 0 {
+		logs.Error("read service::seckill_token_passwd failed. err:%v", err)
+		return
+	}
+	AppConfig.TokenPasswd = tokenPasswd
 
 	return
 }

@@ -19,6 +19,7 @@ func InitLogger() (err error) {
 	}
 
 	logs.SetLogger(logs.AdapterFile, string(configStr))
+	logs.EnableFuncCallDepth(true)
 
 	return
 }
