@@ -76,8 +76,6 @@ func (p *ProductController) SubmitProduct() {
 		return
 	}
 
-	logs.Debug("product name[%s], product total[%d], product status[%d]", productName, productTotal, productStatus)
-
 	productModel := model.NewProductModel()
 	product := model.Product{
 		Name:   productName,
@@ -86,7 +84,10 @@ func (p *ProductController) SubmitProduct() {
 	}
 	err = productModel.CreateProduct(&product)
 	if err != nil {
+		logs.Warn("create product failed. err: %v", err)
+		errNsg = fmt.Sprintf("create product failed. err: %v", err)
 		return
 	}
 
+	logs.Debug("product name[%s], product total[%d], product status[%d]", productName, productTotal, productStatus)
 }
