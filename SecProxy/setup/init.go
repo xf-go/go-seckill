@@ -10,7 +10,7 @@ import (
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/gomodule/redigo/redis"
 
-	etcd "go.etcd.io/etcd/clientv3"
+	etcd "go.etcd.io/etcd/client/v3"
 )
 
 var (
@@ -81,26 +81,26 @@ func convertLogLevel(level string) int {
 	return logs.LevelDebug
 }
 
-func initRedis() (err error) {
-	redisPool = &redis.Pool{
-		MaxIdle:     secKillServer.RedisBlackConf.RedisMaxIdle,
-		MaxActive:   secKillServer.RedisBlackConf.RedisMaxActive,
-		IdleTimeout: time.Duration(secKillServer.RedisBlackConf.RedisIdleTimeout) * time.Second,
-		Dial: func() (redis.Conn, error) {
-			return redis.Dial("tcp", secKillServer.RedisBlackConf.RedisAddr)
-		},
-	}
-	conn := redisPool.Get()
-	defer conn.Close()
+// func initRedis() (err error) {
+// 	redisPool = &redis.Pool{
+// 		MaxIdle:     secKillServer.RedisBlackConf.RedisMaxIdle,
+// 		MaxActive:   secKillServer.RedisBlackConf.RedisMaxActive,
+// 		IdleTimeout: time.Duration(secKillServer.RedisBlackConf.RedisIdleTimeout) * time.Second,
+// 		Dial: func() (redis.Conn, error) {
+// 			return redis.Dial("tcp", secKillServer.RedisBlackConf.RedisAddr)
+// 		},
+// 	}
+// 	conn := redisPool.Get()
+// 	defer conn.Close()
 
-	_, err = conn.Do("ping")
-	if err != nil {
-		logs.Error("ping redis failed, err: %v", err)
-		return
-	}
+// 	_, err = conn.Do("ping")
+// 	if err != nil {
+// 		logs.Error("ping redis failed, err: %v", err)
+// 		return
+// 	}
 
-	return
-}
+// 	return
+// }
 
 func initEtcd() (err error) {
 	cli, err := etcd.New(etcd.Config{

@@ -99,8 +99,6 @@ func handleRead() {
 			case <-ticker.C:
 				logs.Warn("send to handle chan timeout. req: %v", req)
 			}
-
-			secLayerContext.Read2HandleChan <- &req
 		}
 		conn.Close()
 	}
@@ -157,9 +155,12 @@ func handleUser() {
 }
 
 func handleSecKill(req *SecRequest) (res *SecResponse, err error) {
-	secLayerContext.RWSecProductLock.Lock()
+	secLayerContext.RWSecProductLock.RLock()
 	defer secLayerContext.RWSecProductLock.RUnlock()
 
+	res = &SecResponse{}
+	res.UserId = req.UserId
+	res.ProductId = req.ProductId
 	product, ok := secLayerContext.secLayerConf.SecProductInfoMap[req.ProductId]
 	if !ok {
 		logs.Error("product[%d] not found", req.ProductId)

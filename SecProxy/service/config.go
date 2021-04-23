@@ -61,6 +61,9 @@ type SecKillServer struct {
 
 	SecReqChan     chan *SecRequest
 	SecReqChanSize int
+
+	UserConnMap     map[string]chan *SecResult
+	UserConnMapLock sync.Mutex
 }
 
 type SecProductInfoConf struct {
@@ -84,4 +87,14 @@ type SecRequest struct {
 	ClientAddr    string
 	ClientReferer string
 	CloseNotify   <-chan bool
+
+	ResultChan chan *SecResult
+}
+
+type SecResult struct {
+	ProductId int
+	UserId    int
+	Token     string
+	TokenTime int64
+	Code      int
 }

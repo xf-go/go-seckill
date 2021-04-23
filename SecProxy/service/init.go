@@ -51,7 +51,7 @@ func initRedisProcessFunc() {
 }
 
 func initProxy2LayerRedis() (err error) {
-	secKillServer.blackRedisPool = &redis.Pool{
+	secKillServer.proxy2LayerRedisPool = &redis.Pool{
 		MaxIdle:     secKillServer.RedisProxy2LayerConf.RedisMaxIdle,
 		MaxActive:   secKillServer.RedisProxy2LayerConf.RedisMaxActive,
 		IdleTimeout: time.Duration(secKillServer.RedisProxy2LayerConf.RedisIdleTimeout) * time.Second,

@@ -2,20 +2,26 @@ package setup
 
 import (
 	"fmt"
+	"time"
 
 	"SecAdmin/model"
 
 	"github.com/beego/beego/v2/core/logs"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	etcd "go.etcd.io/etcd/client/v3"
 )
-
-var DB *sqlx.DB
 
 func Init() (err error) {
 	err = initConfig()
 	if err != nil {
 		logs.Warn("init config failed. err: %v", err)
+		return
+	}
+
+	etcdCli, err := initEtcd()
+	if err != nil {
+		logs.Warn("init etcd failed. err: %v", err)
 		return
 	}
 
@@ -25,7 +31,20 @@ func Init() (err error) {
 		return
 	}
 
-	model.Init(db)
+	model.Init(db, etcdCli, AppConf.etcdConf.EtcdKeyPrefix, AppConf.etcdConf.ProductKey)
+
+	return
+}
+
+func initEtcd() (cli *etcd.Client, err error) {
+	cli, err = etcd.New(etcd.Config{
+		Endpoints:   []string{AppConf.etcdConf.Addr},
+		DialTimeout: time.Duration(AppConf.etcdConf.Timeout) * time.Second,
+	})
+	if err != nil {
+		logs.Error("connect etcd failed, err: %v", err)
+		return
+	}
 
 	return
 }

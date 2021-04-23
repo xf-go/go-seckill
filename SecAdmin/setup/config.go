@@ -17,6 +17,14 @@ var AppConf Config
 
 type Config struct {
 	MysqlConf MysqlConfig
+	etcdConf  EtcdConfig
+}
+
+type EtcdConfig struct {
+	Addr          string
+	EtcdKeyPrefix string
+	ProductKey    string
+	Timeout       int64
 }
 
 func initConfig() (err error) {
@@ -54,6 +62,34 @@ func initConfig() (err error) {
 		return
 	}
 	AppConf.MysqlConf.Port = port
+
+	etcdAddr, err := beego.AppConfig.String("etcd_addr")
+	if err != nil {
+		logs.Error("init config etcd_addr failed. err: %v", err)
+		return
+	}
+	AppConf.etcdConf.Addr = etcdAddr
+
+	keyPrefix, err := beego.AppConfig.String("etcd_sec_key_prefix")
+	if err != nil {
+		logs.Error("init config etcd_sec_key_prefix failed. err: %v", err)
+		return
+	}
+	AppConf.etcdConf.EtcdKeyPrefix = keyPrefix
+
+	productKey, err := beego.AppConfig.String("etcd_sec_product_key")
+	if err != nil {
+		logs.Error("init config etcd_sec_product_key failed. err: %v", err)
+		return
+	}
+	AppConf.etcdConf.ProductKey = productKey
+
+	etcdTimeout, err := beego.AppConfig.Int64("etcd_timeout")
+	if err != nil {
+		logs.Error("init config etcd_timeout failed. err: %v", err)
+		return
+	}
+	AppConf.etcdConf.Timeout = etcdTimeout
 
 	return
 }

@@ -63,7 +63,7 @@ func (p *ProductController) SubmitProduct() {
 	}()
 
 	productName := p.GetString("product_name")
-	productTotal, err := p.GetInt("product_total")
+	productTotal, err := p.GetInt64("product_total")
 	if err != nil {
 		logs.Warn("invalid product total, err: %v", err)
 		errNsg = fmt.Sprintf("invalid product total, err: %v", err)

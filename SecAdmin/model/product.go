@@ -11,7 +11,7 @@ type ProductModel struct {
 type Product struct {
 	ID     int    `db:"id"`
 	Name   string `db:"name"`
-	Total  int    `db:"total"`
+	Total  int64  `db:"total"`
 	Status int    `db:"status"`
 }
 

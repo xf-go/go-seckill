@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/beego/beego/v2/core/logs"
-	etcd "go.etcd.io/etcd/clientv3"
+	etcd "go.etcd.io/etcd/client/v3"
 )
 
 func initEtcd(conf *SecLayerConf) (err error) {
