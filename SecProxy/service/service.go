@@ -35,10 +35,34 @@ func SecKill(req *SecRequest) (data map[string]interface{}, code int, err error)
 		logs.Warn("userId[%d] SecInfoById failed, code[%d] req[%v]", req.UserId, code, req)
 		return
 	}
+	userKey := fmt.Sprintf("%d_%d", req.UserId, req.ProductId)
 
 	secKillServer.SecReqChan <- req
 
-	return
+	ticker := time.NewTicker(time.Second * 10)
+
+	defer func() {
+		ticker.Stop()
+		secKillServer.UserConnMapLock.Lock()
+		delete(secKillServer.UserConnMap, userKey)
+		secKillServer.UserConnMapLock.Unlock()
+	}()
+
+	select {
+	case <-ticker.C:
+		return nil, ErrProcessTimeout, fmt.Errorf("request timeout")
+	case <-req.CloseNotify:
+		return nil, ErrClientClosed, fmt.Errorf("client already closed")
+	case result := <-req.ResultChan:
+		if result.Code != 1002 {
+			return data, code, fmt.Errorf("client already closed")
+		}
+		data["product_id"] = result.ProductId
+		data["token"] = result.Token
+		data["user_id"] = result.UserId
+		return data, code, nil
+	}
+
 }
 
 func userCheck(req *SecRequest) (err error) {

@@ -17,15 +17,16 @@ const (
 )
 
 type Activity struct {
-	ID        int    `db:"id"`
-	Name      string `db:"name"`
-	ProductId int    `db:"product_id"`
-	StartTime int64  `db:"start_time"`
-	EndTime   int64  `db:"end_time"`
-	Total     int64  `db:"total"`
-	Status    int8   `db:"status"`
-	Speed     int    `db:"sec_speed"`
-	BuyLimit  int    `db:"buy_limit"`
+	ID        int     `db:"id"`
+	Name      string  `db:"name"`
+	ProductId int     `db:"product_id"`
+	StartTime int64   `db:"start_time"`
+	EndTime   int64   `db:"end_time"`
+	Total     int64   `db:"total"`
+	Status    int8    `db:"status"`
+	Speed     int     `db:"sec_speed"`
+	BuyLimit  int     `db:"buy_limit"`
+	BuyRate   float64 `db:"buy_rate"`
 
 	StartTimeStr string
 	EndTimeStr   string
@@ -55,7 +56,7 @@ func NewActivityModel() *ActivityModel {
 }
 
 func (p *ActivityModel) GetActivityList() (activityList []*Activity, err error) {
-	sql := "select id, name, product_id, start_time, end_time, total, status, sec_speed, buy_limit from activity order by od desc"
+	sql := "select id, name, product_id, start_time, end_time, total, status, sec_speed, buy_limit, buy_rate from activity order by od desc"
 	err = DB.Select(&activityList, sql)
 	if err != nil {
 		logs.Error("select activity from database failed. err: %v", err)
@@ -135,8 +136,8 @@ func (p *ActivityModel) CreateActivity(activity *Activity) (err error) {
 		return
 	}
 
-	sql := "insert into activity(name, product_id, start_time, end_time, total, sec_speed, buy_limit) values (?,?,?,?,?,?,?)"
-	_, err = DB.Exec(sql, activity.Name, activity.ProductId, activity.StartTime, activity.EndTime, activity.Total, activity.Speed, activity.BuyLimit)
+	sql := "insert into activity(name, product_id, start_time, end_time, total, sec_speed, buy_limit, buy_rate) values (?,?,?,?,?,?,?,?)"
+	_, err = DB.Exec(sql, activity.Name, activity.ProductId, activity.StartTime, activity.EndTime, activity.Total, activity.Speed, activity.BuyLimit, activity.BuyRate)
 	if err != nil {
 		logs.Error("create activity failed, err: %v, sql: %v", err, sql)
 		return
@@ -170,6 +171,7 @@ func (p *ActivityModel) SyncToEtcd(activity *Activity) (err error) {
 	secProductInfo.Status = activity.Status
 	secProductInfo.Total = activity.Total
 	secProductInfo.OnePersonBuyLimit = activity.BuyLimit
+	secProductInfo.BuyRate = activity.BuyRate
 	secProductInfo.soldMaxLimit = activity.Speed
 
 	secProductInfoList = append(secProductInfoList, secProductInfo)

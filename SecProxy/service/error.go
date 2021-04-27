@@ -8,4 +8,6 @@ const (
 	ErrActivityNotStart    = 1005
 	ErrActivityAlreadyEnd  = 1006
 	ErrActivitySaleOut     = 1007
+	ErrProcessTimeout      = 1008
+	ErrClientClosed        = 1009
 )
